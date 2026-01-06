@@ -1,20 +1,37 @@
 {
-  "name": "Protocolo Orofacial",
-  "short_name": "Orofacial",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#0B0B0F",
-  "theme_color": "#0B0B0F",
-  "icons": [
-    {
-      "src": "assets/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "assets/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
+  "name": "protocolo-masetero-bilateral",
+  "version": "1.0.0",
+  "description": "Sistema de evaluación clínica del músculo masetero bilateral con protocolo interdisciplinario completo",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "build": "echo 'No build process required - static HTML/React'",
+    "deploy": "gh-pages -d ."
+  },
+  "keywords": [
+    "evaluación",
+    "masetero",
+    "clínica",
+    "fisioterapia",
+    "orofacial",
+    "ATM",
+    "toxina-botulínica",
+    "ecografía",
+    "Cauhépé-Netter"
+  ],
+  "author": "Equipo de Desarrollo Clínico",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tu-usuario/protocolo-masetero.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tu-usuario/protocolo-masetero/issues"
+  },
+  "homepage": "https://tu-usuario.github.io/protocolo-masetero",
+  "dependencies": {},
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "serve": "^14.2.1"
+  }
 }
