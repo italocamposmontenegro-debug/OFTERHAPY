@@ -1,0 +1,418 @@
+// MasseterProtocolApp.jsx
+// Sistema de Evaluación del Músculo Masetero Bilateral
+// Version 1.0.0
+
+import React, { useState } from 'react';
+import { Moon, Sun, Save, FileText, Download, Upload, CheckCircle, Menu, X, ChevronRight, ChevronLeft } from 'lucide-react';
+
+// ============================================================================
+// VALIDADOR DE EVALUACIONES
+// ============================================================================
+
+const validateEvaluation = (data) => {
+  const errors = [];
+  const warnings = [];
+  
+  const validateRange = (value, min, max, fieldName) => {
+    if (value !== null && value !== undefined && (value < min || value > max)) {
+      errors.push(`${fieldName}: valor fuera de rango (${min}-${max})`);
+    }
+  };
+  
+  // Campos críticos
+  if (!data.identification?.name) errors.push('Nombre Del Paciente es Obligatorio');
+  if (!data.identification?.evaluationDate) errors.push('Fecha de Evaluación es Obligatoria');
+  
+  // Validar escalas 0-3
+  if (data.clinicalObservation) {
+    validateRange(data.clinicalObservation.leftScore, 0, 3, 'Observación Clínica Izquierda');
+    validateRange(data.clinicalObservation.rightScore, 0, 3, 'Observación Clínica Derecha');
+  }
+  
+  // Validar EVA 0-10
+  if (data.palpation) {
+    validateRange(data.palpation.leftPainEVA, 0, 10, 'EVA Dolor Izquierdo');
+    validateRange(data.palpation.rightPainEVA, 0, 10, 'EVA Dolor Derecho');
+  }
+  
+  // Validar Cauhépé-Netter 0-5
+  if (data.cauhepeNetter) {
+    validateRange(data.cauhepeNetter.leftMasseter, 0, 5, 'Cauhépé-Netter Masetero Izquierdo');
+    validateRange(data.cauhepeNetter.rightMasseter, 0, 5, 'Cauhépé-Netter Masetero Derecho');
+  } else {
+    errors.push('Escala Cauhépé-Netter es Obligatoria');
+  }
+  
+  // Calcular completitud por sección
+  const sections = [
+    'identification', 'clinicalObservation', 'palpation', 'tmj',
+    'mandibularMobility', 'strengthResistance', 'orofacialFunction',
+    'accessoryMusculature', 'cauhepeNetter', 'functionalProfile', 'clinicalConclusion'
+  ];
+  
+  const completeness = {};
+  sections.forEach(section => {
+    const sectionData = data[section];
+    if (!sectionData) {
+      completeness[section] = 0;
+      return;
+    }
+    
+    const fields = Object.keys(sectionData);
+    const filled = fields.filter(key => {
+      const val = sectionData[key];
+      return val !== null && val !== undefined && val !== '';
+    });
+    
+    completeness[section] = fields.length > 0 ? (filled.length / fields.length) * 100 : 0;
+  });
+  
+  const totalCompleteness = Object.values(completeness).reduce((a, b) => a + b, 0) / sections.length;
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    completeness,
+    totalCompleteness
+  };
+};
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
+const MasseterProtocolApp = () => {
+  const [darkMode, setDarkMode] = useState(true);
+  const [mode, setMode] = useState('wizard');
+  const [currentStep, setCurrentStep] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [evaluation, setEvaluation] = useState({
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    identification: {},
+    clinicalObservation: {},
+    palpation: {},
+    tmj: {},
+    mandibularMobility: {},
+    strengthResistance: {},
+    orofacialFunction: {},
+    accessoryMusculature: {},
+    cauhepeNetter: {},
+    functionalProfile: {},
+    botulinumToxin: { applied: false },
+    ultrasound: { performed: false },
+    clinicalConclusion: {}
+  });
+
+  const sections = [
+    { id: 'identification', name: 'Identificación', icon: '👤' },
+    { id: 'scale', name: 'Escala Funcional 0-3', icon: '📊' },
+    { id: 'clinicalObservation', name: 'Observación en Reposo', icon: '👁️' },
+    { id: 'palpation', name: 'Palpación', icon: '👆' },
+    { id: 'tmj', name: 'ATM', icon: '🦴' },
+    { id: 'mandibularMobility', name: 'Movilidad Mandibular', icon: '↔️' },
+    { id: 'strengthResistance', name: 'Fuerza y Resistencia', icon: '💪' },
+    { id: 'orofacialFunction', name: 'Función Orofacial', icon: '😮' },
+    { id: 'accessoryMusculature', name: 'Musculatura Accesoria', icon: '🔗' },
+    { id: 'cauhepeNetter', name: 'Escala Cauhépé-Netter', icon: '📈' },
+    { id: 'functionalProfile', name: 'Perfil Funcional', icon: '📋' },
+    { id: 'botulinumToxin', name: 'Toxina Botulínica', icon: '💉' },
+    { id: 'ultrasound', name: 'Ecografía', icon: '🔊' },
+    { id: 'clinicalConclusion', name: 'Conclusión Clínica', icon: '✅' }
+  ];
+
+  const theme = {
+    bg: darkMode ? '#000000' : '#FFFFFF',
+    surface: darkMode ? '#1a0f2e' : '#f5f0ff',
+    primary: '#9b59b6',
+    secondary: '#d4af37',
+    accent: '#93c47d',
+    text: darkMode ? '#e8e6f0' : '#2c1a4d',
+    textSecondary: darkMode ? '#b8b3c9' : '#5a4773',
+    border: darkMode ? '#3d2b5e' : '#d4c5e8'
+  };
+
+  const updateEvaluation = (section, data) => {
+    setEvaluation(prev => ({
+      ...prev,
+      [section]: { ...prev[section], ...data },
+      updatedAt: new Date().toISOString()
+    }));
+  };
+
+  const saveToLocal = () => {
+    localStorage.setItem('masseter_evaluation', JSON.stringify(evaluation));
+    alert('✓ Borrador Guardado Localmente');
+  };
+
+  const exportJSON = () => {
+    const blob = new Blob([JSON.stringify(evaluation, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `evaluacion_masetero_${evaluation.identification?.name || 'sin_nombre'}_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+  };
+
+  const importJSON = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          setEvaluation(imported);
+          alert('✓ Evaluación Importada');
+        } catch (error) {
+          alert('✗ Error al Importar JSON');
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const validateCurrent = () => {
+    const validation = validateEvaluation(evaluation);
+    const msg = validation.isValid 
+      ? `✓ Evaluación Válida\nCompletitud: ${validation.totalCompleteness.toFixed(1)}%`
+      : `✗ Errores Encontrados:\n${validation.errors.join('\n')}`;
+    alert(msg);
+  };
+
+  const renderSection = () => {
+    const currentSection = sections[currentStep];
+    const commonInputClass = "w-full p-3 rounded-lg border-2";
+    const inputStyle = { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border };
+    
+    switch(currentSection.id) {
+      case 'identification':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: theme.primary }}>Datos de Identificación</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="text" placeholder="ID Paciente" className={commonInputClass} style={inputStyle} value={evaluation.identification.patientId || ''} onChange={(e) => updateEvaluation('identification', { patientId: e.target.value })} />
+              <input type="text" placeholder="Nombre Completo*" className={commonInputClass} style={inputStyle} value={evaluation.identification.name || ''} onChange={(e) => updateEvaluation('identification', { name: e.target.value })} />
+              <input type="number" placeholder="Edad" className={commonInputClass} style={inputStyle} value={evaluation.identification.age || ''} onChange={(e) => updateEvaluation('identification', { age: parseInt(e.target.value) })} />
+              <select className={commonInputClass} style={inputStyle} value={evaluation.identification.gender || ''} onChange={(e) => updateEvaluation('identification', { gender: e.target.value })}>
+                <option value="">Género</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+                <option value="O">Otro</option>
+              </select>
+              <input type="date" className={commonInputClass} style={inputStyle} value={evaluation.identification.evaluationDate || ''} onChange={(e) => updateEvaluation('identification', { evaluationDate: e.target.value })} />
+              <input type="text" placeholder="Evaluador" className={commonInputClass} style={inputStyle} value={evaluation.identification.evaluator || ''} onChange={(e) => updateEvaluation('identification', { evaluator: e.target.value })} />
+            </div>
+          </div>
+        );
+      
+      case 'scale':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: theme.primary }}>Escala de Puntuación Funcional 0–3</h2>
+            <div className="space-y-4 p-6 rounded-lg" style={{ backgroundColor: theme.surface }}>
+              <div className="grid grid-cols-4 gap-4 text-center">
+                {[
+                  { score: '0', label: 'Ausente', desc: 'Sin Actividad Muscular' },
+                  { score: '1', label: 'Leve', desc: 'Actividad Mínima Presente' },
+                  { score: '2', label: 'Moderado', desc: 'Actividad Evidente' },
+                  { score: '3', label: 'Severo', desc: 'Actividad Máxima' }
+                ].map(item => (
+                  <div key={item.score} className="p-4 rounded-lg border-2" style={{ borderColor: theme.border }}>
+                    <div className="text-3xl font-bold mb-2" style={{ color: theme.secondary }}>{item.score}</div>
+                    <div className="font-semibold mb-1" style={{ color: theme.text }}>{item.label}</div>
+                    <div className="text-sm" style={{ color: theme.textSecondary }}>{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-center italic mt-4" style={{ color: theme.textSecondary }}>Esta Escala se Utiliza Como Referencia en las Siguientes Secciones</p>
+            </div>
+          </div>
+        );
+      
+      case 'cauhepeNetter':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: theme.primary }}>Escala de Cauhépé y Netter (0–5)</h2>
+            <div className="p-6 rounded-lg space-y-4" style={{ backgroundColor: theme.surface }}>
+              <h3 className="font-bold text-lg mb-4" style={{ color: theme.secondary }}>Definiciones de Puntaje</h3>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                {[
+                  { score: '0', label: 'Normal' },
+                  { score: '1', label: 'Hipotonía Leve' },
+                  { score: '2', label: 'Hipotonía Moderada' },
+                  { score: '3', label: 'Hipertonía Leve' },
+                  { score: '4', label: 'Hipertonía Moderada' },
+                  { score: '5', label: 'Hipertonía Severa' }
+                ].map(item => (
+                  <div key={item.score} className="p-3 rounded border-2 text-center" style={{ borderColor: theme.border }}>
+                    <span className="font-bold" style={{ color: theme.secondary }}>{item.score}:</span> {item.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2 font-semibold" style={{ color: theme.text }}>Masetero Izquierdo (0-5)*</label>
+                <input type="number" min="0" max="5" className={commonInputClass} style={inputStyle} value={evaluation.cauhepeNetter.leftMasseter ?? ''} onChange={(e) => updateEvaluation('cauhepeNetter', { leftMasseter: parseInt(e.target.value) })} />
+              </div>
+              <div>
+                <label className="block mb-2 font-semibold" style={{ color: theme.text }}>Masetero Derecho (0-5)*</label>
+                <input type="number" min="0" max="5" className={commonInputClass} style={inputStyle} value={evaluation.cauhepeNetter.rightMasseter ?? ''} onChange={(e) => updateEvaluation('cauhepeNetter', { rightMasseter: parseInt(e.target.value) })} />
+              </div>
+            </div>
+            <div className="p-6 rounded-lg" style={{ backgroundColor: theme.surface, borderLeft: `4px solid ${theme.accent}` }}>
+              <h4 className="font-bold mb-2" style={{ color: theme.accent }}>Síntesis Automática</h4>
+              <p style={{ color: theme.text }}>
+                {(() => {
+                  const left = evaluation.cauhepeNetter.leftMasseter;
+                  const right = evaluation.cauhepeNetter.rightMasseter;
+                  if (left === undefined || right === undefined) return 'Complete los Puntajes del Masetero';
+                  const avg = (left + right) / 2;
+                  if (avg <= 2) return '✓ Predominio Neurológico (0-2): Hipotonía - No Candidato a Infiltración';
+                  if (avg === 3) return '⚠ Zona Intermedia (3): Evaluar con Cautela';
+                  return '✓ Predominio Miofuncional (4-5): Hipertonía - Candidato a Infiltración';
+                })()}
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'clinicalConclusion':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold" style={{ color: theme.primary }}>Conclusión Clínica Integrada</h2>
+            <div className="p-6 rounded-lg" style={{ backgroundColor: theme.surface, borderLeft: `4px solid ${theme.secondary}` }}>
+              <h3 className="font-bold mb-3" style={{ color: theme.secondary }}>Regla de Apoyo a la Decisión</h3>
+              <p style={{ color: theme.text }} className="mb-4">Basado en Cauhépé–Netter del Masetero:</p>
+              <ul className="space-y-2" style={{ color: theme.text }}>
+                <li>• <strong>0–2:</strong> No Candidato a Infiltración</li>
+                <li>• <strong>3:</strong> Evaluar con Cautela</li>
+                <li>• <strong>4–5:</strong> Candidato a Infiltración</li>
+              </ul>
+              <p className="mt-4 text-sm italic" style={{ color: theme.textSecondary }}>Campo Origen: cauhepeNetter.leftMasseter y cauhepeNetter.rightMasseter</p>
+            </div>
+            <div className="p-6 rounded-lg" style={{ backgroundColor: theme.surface }}>
+              <h4 className="font-bold mb-3" style={{ color: theme.accent }}>Recomendación Automática</h4>
+              <p className="text-lg" style={{ color: theme.text }}>
+                {(() => {
+                  const left = evaluation.cauhepeNetter?.leftMasseter;
+                  const right = evaluation.cauhepeNetter?.rightMasseter;
+                  if (left === undefined || right === undefined) return 'Complete la Escala Cauhépé-Netter';
+                  const avg = (left + right) / 2;
+                  if (avg <= 2) return '❌ Opción B: No Candidato';
+                  if (avg === 3) return '⚠️ Evaluar Caso Individualmente';
+                  return '✅ Opción A: Candidato';
+                })()}
+              </p>
+            </div>
+            <div>
+              <label className="block mb-2 font-semibold" style={{ color: theme.text }}>Conclusión Final Editable</label>
+              <textarea rows="6" className={commonInputClass} style={inputStyle} placeholder="Ingrese su Conclusión Clínica Final..." value={evaluation.clinicalConclusion.editableConclusion || ''} onChange={(e) => updateEvaluation('clinicalConclusion', { editableConclusion: e.target.value })} />
+            </div>
+            <div className="p-4 rounded-lg" style={{ backgroundColor: darkMode ? '#2d1b3d' : '#fff9e6', border: `2px solid ${theme.secondary}` }}>
+              <p className="text-sm" style={{ color: theme.text }}><strong>⚠️ Disclaimer:</strong> Esta Aplicación Apoya el Registro Clínico y No Reemplaza el Criterio Profesional</p>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="text-center py-12">
+            <p style={{ color: theme.textSecondary }}>Sección en Desarrollo: {currentSection.name}</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex" style={{ backgroundColor: theme.bg, color: theme.text }}>
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden border-r`} style={{ borderColor: theme.border, backgroundColor: theme.surface }}>
+        <div className="p-6 space-y-4">
+          <h2 className="text-lg font-bold mb-6" style={{ color: theme.primary }}>Protocolo Masetero</h2>
+          {sections.map((section, idx) => (
+            <button key={section.id} onClick={() => mode === 'free' ? setCurrentStep(idx) : null} className={`w-full text-left p-3 rounded-lg transition-all ${currentStep === idx ? 'scale-105' : ''}`} style={{ backgroundColor: currentStep === idx ? theme.primary : 'transparent', color: currentStep === idx ? '#fff' : theme.text, cursor: mode === 'free' ? 'pointer' : 'default', opacity: mode === 'wizard' && idx !== currentStep ? 0.5 : 1 }} disabled={mode === 'wizard' && idx !== currentStep}>
+              <span className="mr-2">{section.icon}</span>
+              {section.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <header className="border-b p-4" style={{ borderColor: theme.border }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-lg hover:opacity-80" style={{ backgroundColor: theme.surface }}>
+                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+              <h1 className="text-xl font-bold">Sistema de Evaluación del Músculo Masetero Bilateral</h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setMode(mode === 'wizard' ? 'free' : 'wizard')} className="px-4 py-2 rounded-lg font-semibold transition-all hover:scale-105" style={{ backgroundColor: theme.accent, color: '#000' }}>
+                {mode === 'wizard' ? '🧭 Modo Guiado' : '🔓 Modo Libre'}
+              </button>
+              <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-lg hover:opacity-80" style={{ backgroundColor: theme.surface }}>
+                {darkMode ? <Sun size={20} style={{ color: theme.secondary }} /> : <Moon size={20} />}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {mode === 'wizard' && (
+          <div className="p-4 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold">Progreso</span>
+              <span className="text-sm">{currentStep + 1} / {sections.length}</span>
+            </div>
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: theme.surface }}>
+              <div className="h-full transition-all duration-300" style={{ width: `${((currentStep + 1) / sections.length) * 100}%`, backgroundColor: theme.primary }} />
+            </div>
+          </div>
+        )}
+
+        <main className="flex-1 overflow-auto p-8">{renderSection()}</main>
+
+        <footer className="border-t p-4" style={{ borderColor: theme.border }}>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              {mode === 'wizard' && (
+                <>
+                  <button onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50" style={{ backgroundColor: theme.surface }}>
+                    <ChevronLeft size={18} /> Anterior
+                  </button>
+                  <button onClick={() => setCurrentStep(Math.min(sections.length - 1, currentStep + 1))} disabled={currentStep === sections.length - 1} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105 disabled:opacity-50" style={{ backgroundColor: theme.primary, color: '#fff' }}>
+                    Siguiente <ChevronRight size={18} />
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={saveToLocal} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105" style={{ backgroundColor: theme.accent, color: '#000' }}>
+                <Save size={18} /> Guardar Borrador
+              </button>
+              <button onClick={validateCurrent} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105" style={{ backgroundColor: theme.secondary, color: '#000' }}>
+                <CheckCircle size={18} /> Validar Evaluación
+              </button>
+              <button onClick={exportJSON} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105" style={{ backgroundColor: theme.primary, color: '#fff' }}>
+                <Download size={18} /> Exportar JSON
+              </button>
+              <label className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105 cursor-pointer" style={{ backgroundColor: theme.surface }}>
+                <Upload size={18} /> Importar
+                <input type="file" accept=".json" onChange={importJSON} className="hidden" />
+              </label>
+              <button onClick={() => alert('Generación de PDF: Función a Implementar con jsPDF')} className="px-4 py-2 rounded-lg flex items-center gap-2 transition-all hover:scale-105" style={{ backgroundColor: theme.secondary, color: '#000' }}>
+                <FileText size={18} /> Generar PDF
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+};
+
+export default MasseterProtocolApp;
