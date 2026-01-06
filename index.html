@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0B0B0F" />
+  <meta name="description" content="Aplicación local (sin servidor) para registrar y exportar evaluaciones orofaciales." />
+  <title>Protocolo Orofacial</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="assets/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div class="brand-text">
+        <h1>Protocolo Orofacial</h1>
+        <p>Registro Local, Exportación Y Reporte Imprimible</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="themeToggle" class="btn btn-ghost" type="button" aria-label="Cambiar Modo Día/Noche">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="themeToggleLabel">Modo Noche</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Evaluaciones</h2>
+        <div class="stack">
+          <button id="newEvalBtn" class="btn btn-primary" type="button">Crear Nueva Evaluación</button>
+          <button id="exportAllJsonBtn" class="btn btn-ghost" type="button">Exportar Todo (JSON)</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Historial</h2>
+        <div id="historyEmpty" class="muted">No Hay Evaluaciones Guardadas.</div>
+        <ul id="historyList" class="history"></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Notas</h2>
+        <p class="muted">
+          Todo Se Guarda En Este Navegador (localStorage). No Se Envía Información A Internet.
+        </p>
+      </div>
+    </aside>
+
+    <section class="content">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 id="formTitle">Nueva Evaluación</h2>
+          <div class="panel-actions">
+            <button id="saveBtn" class="btn btn-primary" type="button">Guardar</button>
+            <button id="printBtn" class="btn btn-ghost" type="button">Imprimir / PDF</button>
+            <button id="exportJsonBtn" class="btn btn-ghost" type="button">Exportar (JSON)</button>
+            <button id="exportCsvBtn" class="btn btn-ghost" type="button">Exportar (CSV)</button>
+            <button id="deleteBtn" class="btn btn-danger" type="button">Eliminar</button>
+          </div>
+        </div>
+
+        <form id="evalForm" autocomplete="off">
+          <fieldset class="grid">
+            <div class="field">
+              <label for="patientName">Nombre Usuario/a</label>
+              <input id="patientName" name="patientName" type="text" placeholder="Ej.: Iniciales O Código" />
+            </div>
+            <div class="field">
+              <label for="patientId">Identificador</label>
+              <input id="patientId" name="patientId" type="text" placeholder="Ej.: Ficha / Código Interno" />
+            </div>
+            <div class="field">
+              <label for="evalDate">Fecha</label>
+              <input id="evalDate" name="evalDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="context">Contexto</label>
+              <input id="context" name="context" type="text" placeholder="Ej.: Sala, Domicilio, Hospital" />
+            </div>
+          </fieldset>
+
+          <div class="divider"></div>
+
+          <section class="section">
+            <h3>Músculos Masticatorios</h3>
+            <div id="masticatoryItems" class="items"></div>
+          </section>
+
+          <section class="section">
+            <h3>Músculos Peribucales</h3>
+            <div id="perioralItems" class="items"></div>
+          </section>
+
+          <section class="section">
+            <h3>Músculos Linguales</h3>
+            <div id="lingualItems" class="items"></div>
+          </section>
+
+          <section class="section">
+            <h3>Observaciones</h3>
+            <div class="field">
+              <label for="notes">Notas Clínicas</label>
+              <textarea id="notes" name="notes" rows="4" placeholder="Escriba Observaciones Relevantes."></textarea>
+            </div>
+          </section>
+
+          <div class="divider"></div>
+
+          <div class="footer-help muted">
+            Escala 1–5: 1 = Muy Bajo / Ausente, 5 = Normal / Óptimo (Defina Sus Criterios Locales).
+          </div>
+        </form>
+      </div>
+
+      <div class="panel subtle">
+        <h2>Privacidad</h2>
+        <p class="muted">
+          Esta Aplicación No Requiere Servidor. Si Necesita Respaldos, Use Exportación JSON Y Guárdela En Un Medio Seguro.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer muted">
+    <span>Versión 1.0</span>
+    <span class="sep">•</span>
+    <span>PWA Opcional (Instalable En Escritorio / Móvil)</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
